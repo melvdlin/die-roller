@@ -1,5 +1,7 @@
-use syn::parse_str;
-
 fn main() {
-    let e: syn::ExprBinary = parse_str("1+2").unwrap();
+    let s = "asdfghi";
+    let ss = &s[1..4];
+    let sss = &s[4..7];
+    println!("{s}, {ss}, {sss}");
+    println!("{:?}", ss.char_indices().collect::<Vec<_>>());
 }
