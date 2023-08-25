@@ -1,5 +1,7 @@
 #![feature(lazy_cell)]
 
-pub mod ast;
+extern crate core;
+
 pub mod parse;
 pub mod tokenize;
+pub mod mathexp;

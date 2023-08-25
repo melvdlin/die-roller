@@ -29,10 +29,13 @@ impl<'token> Deref for Token<'token> {
     }
 }
 
-pub trait TokenStream<'tokens>:
-    Sized + FromStr + IntoIterator<Item = Token<'tokens>>
+pub trait TokenStream<'tokens>: FromStr
 {
-    fn parse<T: Parser>(self) -> T::ASTNode {
+    type TokenIter: IntoIterator<Item = Token<'tokens>>;
+
+    fn iter(&self) -> Self::TokenIter;
+
+    fn parse<T: Parser>(&self) -> T::ASTNode {
         T::parse::<'tokens, Self>(self)
     }
 }
