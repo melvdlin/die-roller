@@ -84,12 +84,14 @@ impl<'tokens> TokenBuffer<'tokens> for Tokens<'tokens> {
     }
 }
 
-impl<'tokens> Tokenizer<'tokens> for TokenType {
+impl Tokenizer for TokenType {
     type TokenDesc = TokenType;
-    type TokenBuffer = Tokens<'tokens>;
+    type TokenBuffer<'tokens> = Tokens<'tokens>;
     type TokenizeError = TokenizeError;
 
-    fn tokenize(mut source: &'tokens str) -> Result<Self::TokenBuffer, Self::TokenizeError> {
+    fn tokenize<'tokens>(
+        mut source: &'tokens str,
+    ) -> Result<Self::TokenBuffer<'tokens>, Self::TokenizeError> {
         let mut tokens = Tokens {
             source,
             tokens: Vec::new(),
