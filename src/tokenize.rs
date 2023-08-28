@@ -1,3 +1,4 @@
+use std::error::Error;
 use crate::parse::Parser;
 use std::fmt::{Display, Formatter};
 use std::ops::{Deref, Range};
@@ -7,6 +8,12 @@ pub struct Token<'token, TokenDesc> {
     source: &'token str,
     range: Range<usize>,
     desc: TokenDesc,
+}
+
+impl<'token, TokenDesc> Token<'token, TokenDesc> {
+    pub const fn new(source: &'token str, range: Range<usize>, desc: TokenDesc) -> Self {
+        Token { source, range, desc }
+    }
 }
 
 impl<'token, TokenDesc: Display> Display for Token<'token, TokenDesc> {
@@ -34,8 +41,9 @@ pub trait TokenDesc: Sized {}
 pub trait Tokenizer<'tokens> {
     type TokenDesc: TokenDesc;
     type TokenBuffer: TokenBuffer<'tokens, TokenDesc = Self::TokenDesc>;
+    type TokenizeError: Error;
 
-    fn tokenize(source: &'tokens str) -> Self::TokenBuffer;
+    fn tokenize(source: &'tokens str) -> Result<Self::TokenBuffer, Self::TokenizeError>;
 }
 
 pub trait TokenBuffer<'tokens>: Sized {
@@ -47,7 +55,7 @@ pub trait TokenBuffer<'tokens>: Sized {
 
     fn iter(&self) -> Self::TokenIter<'_>;
 
-    fn tokenize<T: Tokenizer<'tokens, TokenBuffer = Self>>(source: &'tokens str) -> Self {
+    fn tokenize<T: Tokenizer<'tokens, TokenBuffer = Self>>(source: &'tokens str) -> Result<Self, T::TokenizeError> {
         T::tokenize(source)
     }
 
