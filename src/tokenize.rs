@@ -1,27 +1,27 @@
 use crate::parse::Parser;
 use std::fmt::{Display, Formatter};
 use std::ops::{Deref, Range};
-use std::str::FromStr;
 
 #[derive(Clone, Debug)]
-pub struct Token<'token> {
+pub struct Token<'token, TokenDesc> {
     source: &'token str,
     range: Range<usize>,
+    desc: TokenDesc,
 }
 
-impl<'token> Display for Token<'token> {
+impl<'token, TokenDesc: Display> Display for Token<'token, TokenDesc> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.source[self.range.clone()])
+        write!(f, "{}: {}", self.desc, &self.source[self.range.clone()])
     }
 }
 
-impl<'token> AsRef<str> for Token<'token> {
+impl<'token, TokenDesc> AsRef<str> for Token<'token, TokenDesc> {
     fn as_ref(&self) -> &str {
         &self.source[self.range.clone()]
     }
 }
 
-impl<'token> Deref for Token<'token> {
+impl<'token, TokenDesc> Deref for Token<'token, TokenDesc> {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
@@ -29,13 +29,32 @@ impl<'token> Deref for Token<'token> {
     }
 }
 
-pub trait TokenStream<'tokens>: FromStr
-{
-    type TokenIter: IntoIterator<Item = Token<'tokens>>;
+pub trait TokenDesc: Sized {}
 
-    fn iter(&self) -> Self::TokenIter;
+pub trait Tokenizer<'tokens> {
+    type TokenDesc: TokenDesc;
+    type TokenBuffer: TokenBuffer<'tokens, TokenDesc = Self::TokenDesc>;
 
-    fn parse<T: Parser>(&self) -> T::ASTNode {
-        T::parse::<'tokens, Self>(self)
+    fn tokenize(source: &'tokens str) -> Self::TokenBuffer;
+}
+
+pub trait TokenBuffer<'tokens>: Sized {
+    type TokenDesc: TokenDesc + 'tokens;
+    type TokenIter<'iter>: IntoIterator<Item = &'iter Token<'tokens, Self::TokenDesc>>
+    where
+        'tokens: 'iter,
+        Self: 'iter;
+
+    fn iter(&self) -> Self::TokenIter<'_>;
+
+    fn tokenize<T: Tokenizer<'tokens, TokenBuffer = Self>>(source: &'tokens str) -> Self {
+        T::tokenize(source)
+    }
+
+    fn parse<P>(&self) -> Result<P::ASTNode, P::ParseError>
+    where
+        P: Parser<TokenDesc = Self::TokenDesc>,
+    {
+        P::parse::<Self>(self)
     }
 }

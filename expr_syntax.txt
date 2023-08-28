@@ -8,18 +8,17 @@ $LiteralExpression      = $DecLiteral
 
 $DecLiteral             = $DecDigit+
 $DecDigit               = [0-9]
-$DieRollLiteral         = ($DecLiteral?[dD]$DecLiteral)
 
-$OperatorExpression     = $ArithmeticExpression
-                        | $NegationExpression
-                        | $DieRollExpression
-    
-$ArithmeticExpression   = $Expression + $Expression
-                        = $Expression - $Expression
-                        = $Expression * $Expression
-                        = $Expression / $Expression
-                        = $Expression % $Expression
-    
-$NegationExpression     = - $Expression
-                        
-$DieRollExpression      = $Expression? [dD] $Exprecssion
+$OperatorExpression     = $BinaryExpression
+                        | $UnaryExpression
+
+$BinaryExpression       = $Expression $BinaryOperator $ Expression
+$UnaryExpression        = $UnaryOperator $Expression
+
+$BinaryOperator         = $ArithmeticOperator | $DieRollOperator
+$ArithmeticOperator     = + | - | * | / | %
+$DieRollOperator        = d | D
+
+$UnaryOperator          = $NegationOperator
+$NegationOperator       = -
+

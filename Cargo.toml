@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 pcre = "0.2.3"
 quote = "1.0.33"
+regex = "1.9.4"
 syn = "2.0.29"
 
 [features]

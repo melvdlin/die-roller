@@ -32,14 +32,23 @@ pub enum DecDigit {
 }
 
 pub enum OperatorExpression {
-    ArithmeticExpression(ArithmeticExpression),
-    NegationExpression(NegationExpression),
+    BinaryExpression(BinaryExpression),
+    UnaryExpression(UnaryExpression),
 }
 
-pub struct ArithmeticExpression {
+pub struct BinaryExpression {
     lhs: Box<Expression>,
-    operator: ArithmeticOperator,
+    operator: BinaryOperator,
     rhs: Box<Expression>,
+}
+
+pub struct UnaryExpression {
+    operator: UnaryOperator,
+    expr: Box<Expression>,
+}
+
+pub enum BinaryOperator {
+    ArithmeticOperator(ArithmeticOperator),
 }
 
 pub enum ArithmeticOperator {
@@ -50,9 +59,8 @@ pub enum ArithmeticOperator {
     Percent,
 }
 
-pub struct NegationExpression {
-    operator: NegationOperator,
-    expr: Box<Expression>,
+pub enum UnaryOperator {
+    NegationOperator(NegationOperator),
 }
 
 pub enum NegationOperator {

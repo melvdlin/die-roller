@@ -1,12 +1,12 @@
-use crate::tokenize::TokenStream;
+use crate::tokenize::{TokenBuffer, TokenDesc};
 use std::error::Error;
-use std::string::ParseError;
 
 pub trait Parser {
     type ASTNode;
+    type TokenDesc: TokenDesc;
     type ParseError: Error;
 
-    fn parse<'tokens, T: TokenStream<'tokens>>(
-        tokens: T,
-    ) -> Result<Self::ASTNode, ParseError>;
+    fn parse<'tokens, T: TokenBuffer<'tokens, TokenDesc = Self::TokenDesc>>(
+        tokens: &T,
+    ) -> Result<Self::ASTNode, Self::ParseError>;
 }
