@@ -1,13 +1,13 @@
+use crate::tokenize::{Token, TokenBuffer, TokenDesc, Tokenizer};
+use regex::Regex;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use crate::tokenize::{Token, TokenBuffer, TokenDesc, Tokenizer};
-use regex::Regex;
 use std::sync::LazyLock;
 
 #[derive(Debug)]
 pub enum TokenizeError {
-    UnknownToken(Range<usize>, String)
+    UnknownToken(Range<usize>, String),
 }
 
 #[derive(Debug)]
@@ -30,12 +30,15 @@ static OPERATOR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[+\-*/%]")
 static LEFT_PAREN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\(").unwrap());
 static RIGHT_PAREN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\)").unwrap());
 
-
 impl Display for TokenizeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenizeError::UnknownToken(range, token) => {
-                write!(f, "Unknown Token at [{}..{}]: {token}", range.start, range.end)
+            | TokenizeError::UnknownToken(range, token) => {
+                write!(
+                    f,
+                    "Unknown Token at [{}..{}]: {token}",
+                    range.start, range.end
+                )
             }
         }
     }
@@ -59,7 +62,16 @@ impl<'tokens> Tokens<'tokens> {
 
 impl<'tokens> Display for Tokens<'tokens> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.tokens.iter().map(|token| format!("{token}")).collect::<Vec<_>>())
+        write!(
+            f,
+            "Tokens in {}: [{}]",
+            self.source,
+            self.tokens
+                .iter()
+                .map(|token| format!("{token}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 }
 
@@ -83,8 +95,8 @@ impl<'tokens> Tokenizer<'tokens> for TokenType {
             tokens: Vec::new(),
         };
         let mut offset: usize = 0;
-        'tokenize_loop:
         while !source.is_empty() {
+            let mut matched = false;
             for (token_type, re) in [
                 (None, &WHITESPACE_RE),
                 (Some(TokenType::Literal), &LITERAL_RE),
@@ -92,10 +104,8 @@ impl<'tokens> Tokenizer<'tokens> for TokenType {
                 (Some(TokenType::LeftParen), &LEFT_PAREN_RE),
                 (Some(TokenType::RightParen), &RIGHT_PAREN_RE),
             ] {
-                let pat = re.to_string();
-                let pat = pat;
                 if let Some(mat) = re.find(source) {
-                    offset += mat.end();
+                    matched = true;
                     source = &source[mat.end()..];
                     let range = mat.range();
                     let src = tokens.source;
@@ -103,11 +113,16 @@ impl<'tokens> Tokenizer<'tokens> for TokenType {
                         let abs_start = mat.start() + offset;
                         let abs_end = mat.end() + offset;
                         tokens.add_token(abs_start..abs_end, token_type);
-                        continue 'tokenize_loop;
+                    }
+                    offset += mat.end();
+                    if matched {
+                        break;
                     }
                 }
             }
-            return Err(TokenizeError::UnknownToken(0..0, source.to_string()));
+            if !matched {
+                return Err(TokenizeError::UnknownToken(0..0, source.to_string()));
+            }
         }
         Ok(tokens)
     }
