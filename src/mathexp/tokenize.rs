@@ -1,6 +1,5 @@
 use crate::tokenize::{Token, TokenBuffer, TokenDesc, Tokenizer};
 use regex::Regex;
-use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 use std::sync::LazyLock;
@@ -9,6 +8,9 @@ use std::sync::LazyLock;
 pub enum TokenizeError {
     UnknownToken(Range<usize>, String),
 }
+
+type Error = TokenizeError;
+type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum TokenType {
@@ -44,7 +46,7 @@ impl Display for TokenizeError {
     }
 }
 
-impl Error for TokenizeError {}
+impl std::error::Error for TokenizeError {}
 
 impl TokenDesc for TokenType {}
 
@@ -56,10 +58,10 @@ impl Display for TokenType {
 
 impl Tokenizer for TokenType {
     type TokenDesc = TokenType;
-    type TB = Tokens;
+    type TokenBuffer = Tokens;
     type TokenizeError = TokenizeError;
 
-    fn tokenize(mut source: &str) -> Result<Tokens, Self::TokenizeError> {
+    fn tokenize(mut source: &str) -> Result<Self::TokenBuffer> {
         let mut tokens = Tokens {
             source: source.to_string(),
             tokens: Vec::new(),

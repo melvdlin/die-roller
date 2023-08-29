@@ -44,10 +44,10 @@ pub trait TokenDesc: Sized {}
 
 pub trait Tokenizer {
     type TokenDesc: TokenDesc;
-    type TB: TokenBuffer<TokenDesc = Self::TokenDesc>;
+    type TokenBuffer: TokenBuffer<TokenDesc = Self::TokenDesc>;
     type TokenizeError: Error;
 
-    fn tokenize(source: &str) -> Result<Self::TB, Self::TokenizeError>;
+    fn tokenize(source: &str) -> Result<Self::TokenBuffer, Self::TokenizeError>;
 }
 
 pub trait TokenBuffer: Sized {
@@ -58,7 +58,7 @@ pub trait TokenBuffer: Sized {
 
     fn iter<'iter, 'self_ref: 'iter>(&'self_ref self) -> Self::TokenIter<'iter>;
 
-    fn tokenize<T: Tokenizer<TB = Self>>(source: &str) -> Result<Self, T::TokenizeError> {
+    fn tokenize<T: Tokenizer<TokenBuffer = Self>>(source: &str) -> Result<Self, T::TokenizeError> {
         T::tokenize(source)
     }
 

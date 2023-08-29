@@ -22,3 +22,39 @@ $DieRollOperator        = d | D
 $UnaryOperator          = $NegationOperator
 $NegationOperator       = -
 
+
+
+1 + 2 + 3 + 4 + 5
+= (1 + (2 + (3 + (4 + (5)))))
+
+1 + 2 + 3 * 4 + 5
+= (1 + (2 + (3 * (4 + (5))))) -- WRONG
+
+1 + 2 * 3 + 4 * 5
+= (1 + (2 * (3 + (4 * (5))))) -- WRONG
+
+1 / 2 / 3 / 4 / 5
+= (1 / (2 / (3 / (4 / (5))))) -- WRONG
+
+Exp         = BinExp | UnExp | GroupedExp | Lit
+GroupedExp  = ( Exp )
+BinExp      = Exp { + | - | * | / | % | d | D } Exp
+UnExpr      = { - } Exp
+Priorities:
+0: -/1
+1: d/2 | D/2
+2: * | / | %
+3: + | -
+
+rewritten as:
+
+Exp         = ExpL0 | ExpL1 | ExpL2 | ExpL3 | ExpL4
+GroupedExp  = ( Exp )
+
+ExpL0       = GroupedExp | Lit
+ExpL1       = UnOpL1L { ExpL0 | ExpL1 } |
+ExpL2       =
+ExpL3       =
+ExpL4       =
+
+factor == L0
