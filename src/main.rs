@@ -10,7 +10,6 @@ fn main() {
             "Ok: [\n{}\n]",
             tokens
                 .iter()
-                .iter()
                 .map(|token| format!("{token}"))
                 .collect::<Vec<_>>()
                 .join(",\n    ")

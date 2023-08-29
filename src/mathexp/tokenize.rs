@@ -19,9 +19,9 @@ pub enum TokenType {
 }
 
 #[derive(Debug)]
-pub struct Tokens<'tokens> {
-    source: &'tokens str,
-    tokens: Vec<Token<'tokens, TokenType>>,
+pub struct Tokens {
+    source: String,
+    tokens: Vec<Token<TokenType>>,
 }
 
 static WHITESPACE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\s+").unwrap());
@@ -54,46 +54,14 @@ impl Display for TokenType {
     }
 }
 
-impl<'tokens> Tokens<'tokens> {
-    fn add_token(&mut self, range: Range<usize>, token_type: TokenType) {
-        self.tokens.push(Token::new(self.source, range, token_type));
-    }
-}
-
-impl<'tokens> Display for Tokens<'tokens> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Tokens in {}: [{}]",
-            self.source,
-            self.tokens
-                .iter()
-                .map(|token| format!("{token}"))
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
-    }
-}
-
-impl<'tokens> TokenBuffer<'tokens> for Tokens<'tokens> {
-    type TokenDesc = TokenType;
-    type TokenIter<'iter> = &'iter [Token<'tokens, Self::TokenDesc>] where 'tokens: 'iter;
-
-    fn iter(&self) -> Self::TokenIter<'_> {
-        &self.tokens
-    }
-}
-
 impl Tokenizer for TokenType {
     type TokenDesc = TokenType;
-    type TokenBuffer<'tokens> = Tokens<'tokens>;
+    type TB = Tokens;
     type TokenizeError = TokenizeError;
 
-    fn tokenize<'tokens>(
-        mut source: &'tokens str,
-    ) -> Result<Self::TokenBuffer<'tokens>, Self::TokenizeError> {
+    fn tokenize(mut source: &str) -> Result<Tokens, Self::TokenizeError> {
         let mut tokens = Tokens {
-            source,
+            source: source.to_string(),
             tokens: Vec::new(),
         };
         let mut offset: usize = 0;
@@ -109,8 +77,6 @@ impl Tokenizer for TokenType {
                 if let Some(mat) = re.find(source) {
                     matched = true;
                     source = &source[mat.end()..];
-                    let range = mat.range();
-                    let src = tokens.source;
                     if let Some(token_type) = token_type {
                         let abs_start = mat.start() + offset;
                         let abs_end = mat.end() + offset;
@@ -127,5 +93,36 @@ impl Tokenizer for TokenType {
             }
         }
         Ok(tokens)
+    }
+}
+
+impl Tokens {
+    fn add_token(&mut self, range: Range<usize>, token_type: TokenType) {
+        self.tokens
+            .push(Token::new(&self.source[range.clone()], range, token_type));
+    }
+}
+
+impl Display for Tokens {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Tokens in {}: [{}]",
+            self.source,
+            self.tokens
+                .iter()
+                .map(|token| format!("{token}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+impl TokenBuffer for Tokens {
+    type TokenDesc = TokenType;
+    type TokenIter<'iter> = std::slice::Iter<'iter, Token<Self::TokenDesc>>;
+
+    fn iter<'iter, 'self_ref: 'iter>(&'self_ref self) -> Self::TokenIter<'iter> {
+        self.tokens.iter()
     }
 }
