@@ -45,7 +45,9 @@ impl crate::parse::Parser for Parser {
     type ParseError = ParseError;
 
     fn parse(tokens: &Self::TokenBuffer) -> Result<Self::ASTNode> {
-        todo!()
+        let mut peekable = tokens.iter().enumerate().peekable();
+
+        Self::parse_with_precedence(&mut peekable, None)
     }
 }
 
@@ -90,7 +92,7 @@ impl Parser {
                 break;
             }
 
-            if let Some((idx, peek)) = tokens.peek() {
+            while let Some((idx, peek)) = tokens.peek() {
                 if let Some(op) = BinOp::parse(peek) {
                     match op.associativity() {
                         | Direction::Left => {
@@ -101,16 +103,20 @@ impl Parser {
                                     op,
                                     Self::parse_with_precedence(tokens, Some(op.precedence()))?,
                                 ));
+                            } else {
+                                break;
                             }
                         }
                         | Direction::Right => {
-                            if precedence.is_some() && precedence.unwrap() <= op.precedence() {
+                            if precedence.is_some() && precedence.unwrap() >= op.precedence() {
                                 tokens.next();
                                 exp = Exp::BinExp(BinExp::new(
                                     exp,
                                     op,
                                     Self::parse_with_precedence(tokens, Some(op.precedence()))?,
                                 ))
+                            } else {
+                                break;
                             }
                         }
                     }

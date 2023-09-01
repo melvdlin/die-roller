@@ -1,19 +1,10 @@
-use die_roller::mathexp::tokenize::{Tokenizer, Tokens};
-use die_roller::tokenize::TokenBuffer;
+use die_roller::mathexp::parse::Parser;
+use die_roller::mathexp::tokenize::Tokenizer;
 
 fn main() {
-    let expr_str = "109876543 + (-31316 * 4318 % (-932))";
-    let result: die_roller::mathexp::tokenize::Result<_> = Tokens::tokenize::<Tokenizer>(expr_str);
-    println!("Expression to parse: {expr_str}");
-    match result {
-        | Ok(tokens) => println!(
-            "Ok: [\n{}\n]",
-            tokens
-                .iter()
-                .map(|token| format!("{token}"))
-                .collect::<Vec<_>>()
-                .join(",\n    ")
-        ),
-        | Err(err) => println!("Err: {err}"),
-    }
+    let expr = "1 + 2 + 3 * 4 * 5 / 6 / 7 ^ 8 ^ 9 * 10 / 11 + 12";
+    let tokens = <Tokenizer as die_roller::tokenize::Tokenizer>::tokenize(expr).unwrap();
+    let ast = <Parser as die_roller::parse::Parser>::parse(&tokens).unwrap();
+    println!("{expr}");
+    println!("{ast}");
 }

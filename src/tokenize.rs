@@ -34,7 +34,7 @@ impl Display for Token {
 
 impl AsRef<str> for Token {
     fn as_ref(&self) -> &str {
-        &self.raw[self.range.clone()]
+        &self.raw
     }
 }
 
