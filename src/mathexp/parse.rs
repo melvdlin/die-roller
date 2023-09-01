@@ -1,15 +1,15 @@
-use crate::mathexp::ast::{
-    BinExp, BinOp, DecDigit, DecLit, Exp, GroupedExp, Lit, UnExpPost, UnExpPre, UnOpPost, UnOpPre,
-};
+use crate::mathexp::ast::*;
 use crate::mathexp::tokenize::Tokens;
 use crate::tokenize::{Token, TokenBuffer};
 use std::fmt::{Display, Formatter};
-use std::iter::{Enumerate, Peekable};
+
+pub type Error = ParseError;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum ParseError {
     EndOfTokenStream,
-    UnknownToken(usize),
+    UnexpectedToken(usize),
     ImbalancedParentheses(usize),
 }
 
@@ -19,8 +19,13 @@ enum Direction {
     Right,
 }
 
-pub type Error = ParseError;
-pub type Result<T> = std::result::Result<T, Error>;
+#[derive(Debug, Clone)]
+pub enum Fragment {
+    // SubExp(Exp),
+    GroupedExp,
+    UnExpPre(UnOpPre),
+    BinExp(Exp, BinOp),
+}
 
 pub struct Parser {}
 
@@ -38,9 +43,164 @@ impl crate::parse::Parser for Parser {
     type ParseError = ParseError;
 
     fn parse(tokens: &Self::TokenBuffer) -> Result<Self::ASTNode> {
-        let mut peekable = tokens.iter().enumerate().peekable();
+        let mut tokens = tokens.iter().enumerate().peekable();
+        let mut frags = Vec::<Fragment>::new();
+        let mut sub_exp: Option<Exp> = None;
 
-        todo!()
+        while !frags.is_empty() || tokens.peek().is_some() {
+            // token could be:
+            // ")":         must be preceded by [ "(" SubExp ]              -> SubExp
+            // Lit:         must be preceded by [ "(" | UnOpPre | BinOp ]   -> SubExp
+            // UnOpPost     must be preceded by [ SubExp ]                  -> SubExp
+            // "("          must be preceded by [ "(" | UnOpPre | BinOp ]   -> GroupedExp
+            // UnOpPre      must be preceded by [ "(" | UnOpPre | BinOp ]   -> UnExpPre
+            // BinOp        must be preceded by [ SubExp ]                  -> BinExp
+            // every iteration:
+            // 1: try to resolve stack with token
+            //      if sub_exp available and next token = [ BinOp | UnOpPost ] = op
+            //          if TOS = BinExp
+            //              if TOS.associativity = Left
+            //                  if op.precedence < TOS.precedence
+            //                      push BinOp(SubExp, op)
+            //                  else
+            //                      sub_exp = pop TOS + sub_exp
+            //                      if token = BinOp
+            // 2: otherwise create new fragment with token and push fragment onto stack
+
+            //
+
+            if let Some(exp) = sub_exp.take() {
+                if let Some((idx, token)) = tokens.peek() {
+                    if let Some(token_op) = BinOp::parse(token) {
+                        if let Some(tos) = frags.pop() {
+                            match tos {
+                                | Fragment::UnExpPre(tos_op) => {
+                                    if tos_op.has_precedence(&token_op) {
+                                        sub_exp.replace(Exp::UnExpPre(UnExpPre::new(tos_op, exp)));
+                                    } else {
+                                        frags.push(tos);
+                                        frags.push(Fragment::BinExp(exp, token_op));
+                                        tokens.next();
+                                    }
+                                    continue;
+                                }
+                                | Fragment::BinExp(tos_exp, tos_op) => {
+                                    if tos_op.has_associative_precedence(&token_op) {
+                                        sub_exp.replace(Exp::BinExp(BinExp::new(
+                                            tos_exp, tos_op, exp,
+                                        )));
+                                    } else {
+                                        frags.push(Fragment::BinExp(tos_exp, tos_op));
+                                        frags.push(Fragment::BinExp(exp, token_op));
+                                        tokens.next();
+                                    }
+                                    continue;
+                                }
+                                | _ => {
+                                    frags.push(tos);
+                                }
+                            }
+                        } else {
+                            frags.push(Fragment::BinExp(exp, token_op));
+                            tokens.next();
+                            continue;
+                        }
+                    } else if let Some(token_op) = UnOpPost::parse(token) {
+                        if let Some(tos) = frags.pop() {
+                            match tos {
+                                | Fragment::UnExpPre(tos_op) => {
+                                    if tos_op.has_precedence(&token_op) {
+                                        sub_exp.replace(Exp::UnExpPre(UnExpPre::new(tos_op, exp)));
+                                        continue;
+                                    } else {
+                                        sub_exp
+                                            .replace(Exp::UnExpPost(UnExpPost::new(exp, token_op)));
+                                        frags.push(tos);
+                                        tokens.next();
+                                        continue;
+                                    }
+                                }
+                                | Fragment::BinExp(tos_exp, tos_op) => {
+                                    if tos_op.has_associative_precedence(&token_op) {
+                                        sub_exp.replace(Exp::BinExp(BinExp::new(
+                                            tos_exp, tos_op, exp,
+                                        )));
+                                        continue;
+                                    } else {
+                                        sub_exp
+                                            .replace(Exp::UnExpPost(UnExpPost::new(exp, token_op)));
+                                        frags.push(Fragment::BinExp(tos_exp, tos_op));
+                                        tokens.next();
+                                        continue;
+                                    }
+                                }
+                                | _ => {
+                                    frags.push(tos);
+                                }
+                            }
+                        } else {
+                            sub_exp.replace(Exp::UnExpPost(UnExpPost::new(exp, token_op)));
+                            tokens.next();
+                            continue;
+                        }
+                    } else if token.eq(")") {
+                        if let Some(tos) = frags.pop() {
+                            match tos {
+                                | Fragment::UnExpPre(tos_op) => {
+                                    sub_exp.replace(Exp::UnExpPre(UnExpPre::new(tos_op, exp)));
+                                }
+                                | Fragment::BinExp(tos_exp, tos_op) => {
+                                    sub_exp.replace(Exp::BinExp(BinExp::new(tos_exp, tos_op, exp)));
+                                }
+                                | Fragment::GroupedExp => {
+                                    sub_exp.replace(Exp::GroupedExp(GroupedExp::new(exp)));
+                                    tokens.next();
+                                }
+                            }
+                            continue;
+                        } else {
+                            return Err(ParseError::ImbalancedParentheses(*idx));
+                        }
+                    } else {
+                        return Err(ParseError::UnexpectedToken(*idx));
+                    }
+                } else if let Some(tos) = frags.pop() {
+                    match tos {
+                        | Fragment::GroupedExp => {
+                            return Err(ParseError::EndOfTokenStream);
+                        }
+                        | Fragment::UnExpPre(tos_op) => {
+                            sub_exp.replace(Exp::UnExpPre(UnExpPre::new(tos_op, exp)));
+                            continue;
+                        }
+                        | Fragment::BinExp(tos_exp, tos_op) => {
+                            sub_exp.replace(Exp::BinExp(BinExp::new(tos_exp, tos_op, exp)));
+                            continue;
+                        }
+                    }
+                }
+            } else if let Some((idx, token)) = tokens.peek() {
+                if let Some(token_lit) = Lit::parse(token) {
+                    sub_exp.replace(Exp::Lit(token_lit));
+                    tokens.next();
+                    continue;
+                } else if let Some(token_op) = UnOpPre::parse(token) {
+                    frags.push(Fragment::UnExpPre(token_op));
+                    tokens.next();
+                    continue;
+                } else if token.eq("(") {
+                    frags.push(Fragment::GroupedExp);
+                    tokens.next();
+                    continue;
+                } else {
+                    return Err(ParseError::UnexpectedToken(*idx));
+                }
+            } else {
+                return Err(ParseError::EndOfTokenStream);
+            }
+        }
+
+        sub_exp.ok_or(ParseError::EndOfTokenStream)
     }
 }
 
@@ -50,6 +210,20 @@ trait ASTLeaf: Sized {
 
 trait Precedence {
     fn precedence(&self) -> usize;
+
+    fn has_precedence(&self, over: &impl Precedence) -> bool {
+        self.precedence() < over.precedence()
+    }
+
+    fn has_associative_precedence(&self, over: &impl Precedence) -> bool
+    where
+        Self: Associativity,
+    {
+        match self.associativity() {
+            | Direction::Left => self.precedence() <= over.precedence(),
+            | Direction::Right => self.precedence() < over.precedence(),
+        }
+    }
 }
 
 trait Associativity {

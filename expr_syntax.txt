@@ -68,16 +68,26 @@ factor == L0
 
 Exp         = Exp(n)
 
-Exp(n)      = Exp(n)  BinOp(L,n) Exp(<n)
-            | Exp(<n) BinOp(R,n) Exp(n)
-            | UnOp(n,L) Exp(<n)
-            | Exp(n) UnOp(n,R)
+Exp(n)      = Exp(<=m)      BinOp(L,m<=n)   Exp( <m)
+            | Exp( <m)      BinOp(R,m<=n)   Exp(<=m)
+            | UnOp(m<=n,L)  Exp(<m)
+            | Exp(<=m)      UnOp(m<=n,R)
             | "(" Exp ")"
             | Lit
 
+Terminals:          "(", ")", Lit, BinOp, UnOp
+Leftmost Terminals: "(", Lit, UnOp(L)
+Rightmost Terminals: ")", Lit, UnOp(R)
 
+terminal    may be followed by
+")"         ")", UnOp(R), BinOp, !
+Lit         ")", UnOp(R), BinOp, !
+UnOp(R)     ")", UnOp(R), BinOp, !
+"("         "(", Lit, UnOp(L)
+UnOp(L)     "(", Lit, UnOp(L)
+BinOp       "(", Lit, UnOp(L)
 
-
+(((1) + (2)) / ((3) ^ (4)))
 
 
 1234 . 5678 !
