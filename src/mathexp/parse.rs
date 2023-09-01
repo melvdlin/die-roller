@@ -19,13 +19,6 @@ enum Direction {
     Right,
 }
 
-#[derive(Debug, Copy, Clone)]
-enum Operator {
-    BinOp(BinOp),
-    UnOpPre(UnOpPre),
-    UnOpPost(UnOpPost),
-}
-
 pub type Error = ParseError;
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -47,85 +40,7 @@ impl crate::parse::Parser for Parser {
     fn parse(tokens: &Self::TokenBuffer) -> Result<Self::ASTNode> {
         let mut peekable = tokens.iter().enumerate().peekable();
 
-        Self::parse_with_precedence(&mut peekable, None)
-    }
-}
-
-impl Parser {
-    fn parse_with_precedence<'iter>(
-        tokens: &mut Peekable<Enumerate<<Tokens as TokenBuffer>::TokenIter<'iter>>>,
-        precedence: Option<usize>,
-    ) -> Result<Exp> {
-        let (idx, peek) = tokens.peek().ok_or(ParseError::EndOfTokenStream)?;
-        let mut result = if peek.eq("(") {
-            tokens.next();
-            let exp = Self::parse_with_precedence(tokens, None)?;
-            let (idx, peek) = tokens.peek().ok_or(ParseError::EndOfTokenStream)?;
-            if peek.ne(")") {
-                Err(ParseError::ImbalancedParentheses(*idx))
-            } else {
-                tokens.next();
-                Ok(Exp::GroupedExp(GroupedExp::new(exp)))
-            }
-        } else if let Some(lit) = Lit::parse(peek) {
-            tokens.next();
-            Ok(Exp::Lit(lit))
-        } else if let Some(op) = UnOpPre::parse(peek) {
-            tokens.next();
-            let exp = Self::parse_with_precedence(tokens, Some(op.precedence()))?;
-            Ok(Exp::UnExpPre(UnExpPre::new(op, exp)))
-        } else {
-            Err(ParseError::UnknownToken(*idx))
-        };
-
-        if let Ok(mut exp) = result {
-            #[allow(clippy::never_loop)]
-            loop {
-                if let Some((idx, peek)) = tokens.peek() {
-                    if let Some(op) = UnOpPost::parse(peek) {
-                        if precedence.is_none() || op.precedence() <= precedence.unwrap() {
-                            exp = Exp::UnExpPost(UnExpPost::new(exp, op));
-                            tokens.next();
-                        }
-                    }
-                }
-                break;
-            }
-
-            while let Some((idx, peek)) = tokens.peek() {
-                if let Some(op) = BinOp::parse(peek) {
-                    match op.associativity() {
-                        | Direction::Left => {
-                            if precedence.is_none() || precedence.unwrap() > op.precedence() {
-                                tokens.next();
-                                exp = Exp::BinExp(BinExp::new(
-                                    exp,
-                                    op,
-                                    Self::parse_with_precedence(tokens, Some(op.precedence()))?,
-                                ));
-                            } else {
-                                break;
-                            }
-                        }
-                        | Direction::Right => {
-                            if precedence.is_some() && precedence.unwrap() >= op.precedence() {
-                                tokens.next();
-                                exp = Exp::BinExp(BinExp::new(
-                                    exp,
-                                    op,
-                                    Self::parse_with_precedence(tokens, Some(op.precedence()))?,
-                                ))
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            return Ok(exp);
-        }
-
-        result
+        todo!()
     }
 }
 
@@ -139,16 +54,6 @@ trait Precedence {
 
 trait Associativity {
     fn associativity(&self) -> Direction;
-}
-
-impl Precedence for Operator {
-    fn precedence(&self) -> usize {
-        match self {
-            | Operator::BinOp(op) => op.precedence(),
-            | Operator::UnOpPre(op) => op.precedence(),
-            | Operator::UnOpPost(op) => op.precedence(),
-        }
-    }
 }
 
 impl Precedence for BinOp {
@@ -171,7 +76,9 @@ impl Precedence for UnOpPre {
 
 impl Precedence for UnOpPost {
     fn precedence(&self) -> usize {
-        match *self {}
+        match self {
+            | UnOpPost::ExclamationMark => 3,
+        }
     }
 }
 
@@ -236,6 +143,7 @@ impl ASTLeaf for UnOpPre {
 impl ASTLeaf for UnOpPost {
     fn parse(token: &Token) -> Option<Self> {
         match token as &str {
+            | "!" => Some(UnOpPost::ExclamationMark),
             | _ => None,
         }
     }

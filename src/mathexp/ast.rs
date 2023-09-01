@@ -45,7 +45,9 @@ pub struct UnExpPost {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum UnOpPost {}
+pub enum UnOpPost {
+    ExclamationMark,
+}
 
 #[derive(Debug, Clone)]
 pub struct GroupedExp {
@@ -136,7 +138,7 @@ impl Display for UnExpPre {
 
 impl Display for UnExpPost {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}, {}", self.exp, self.op)
+        write!(f, "{} {}", self.exp, self.op)
     }
 }
 
@@ -201,6 +203,12 @@ impl Display for UnOpPre {
 impl Display for UnOpPost {
     #[allow(unreachable_code)]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match *self {})
+        write!(
+            f,
+            "{}",
+            match self {
+                | UnOpPost::ExclamationMark => "!",
+            }
+        )
     }
 }
