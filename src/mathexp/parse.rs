@@ -1,4 +1,6 @@
-use crate::mathexp::ast::{BinOp, DecDigit, DecLit, Exp, GroupedExp, Lit, UnOpPost, UnOpPre};
+use crate::mathexp::ast::{
+    BinExp, BinOp, DecDigit, DecLit, Exp, GroupedExp, Lit, UnExpPost, UnExpPre, UnOpPost, UnOpPre,
+};
 use crate::mathexp::tokenize::Tokens;
 use crate::tokenize::{Token, TokenBuffer};
 use std::fmt::{Display, Formatter};
@@ -53,24 +55,70 @@ impl Parser {
         precedence: Option<usize>,
     ) -> Result<Exp> {
         let (idx, peek) = tokens.peek().ok_or(ParseError::EndOfTokenStream)?;
-        let result = if peek.eq("(") {
+        let mut result = if peek.eq("(") {
             tokens.next();
             let exp = Self::parse_with_precedence(tokens, None)?;
             let (idx, peek) = tokens.peek().ok_or(ParseError::EndOfTokenStream)?;
             if peek.ne(")") {
                 Err(ParseError::ImbalancedParentheses(*idx))
             } else {
+                tokens.next();
                 Ok(Exp::GroupedExp(GroupedExp::new(exp)))
             }
         } else if let Some(lit) = Lit::parse(peek) {
+            tokens.next();
             Ok(Exp::Lit(lit))
-        } else if todo!() {
-            todo!()
+        } else if let Some(op) = UnOpPre::parse(peek) {
+            tokens.next();
+            let exp = Self::parse_with_precedence(tokens, Some(op.precedence()))?;
+            Ok(Exp::UnExpPre(UnExpPre::new(op, exp)))
         } else {
             Err(ParseError::UnknownToken(*idx))
         };
 
-        tokens.next();
+        if let Ok(mut exp) = result {
+            #[allow(clippy::never_loop)]
+            loop {
+                if let Some((idx, peek)) = tokens.peek() {
+                    if let Some(op) = UnOpPost::parse(peek) {
+                        if precedence.is_none() || op.precedence() <= precedence.unwrap() {
+                            exp = Exp::UnExpPost(UnExpPost::new(exp, op));
+                            tokens.next();
+                        }
+                    }
+                }
+                break;
+            }
+
+            if let Some((idx, peek)) = tokens.peek() {
+                if let Some(op) = BinOp::parse(peek) {
+                    match op.associativity() {
+                        | Direction::Left => {
+                            if precedence.is_none() || precedence.unwrap() > op.precedence() {
+                                tokens.next();
+                                exp = Exp::BinExp(BinExp::new(
+                                    exp,
+                                    op,
+                                    Self::parse_with_precedence(tokens, Some(op.precedence()))?,
+                                ));
+                            }
+                        }
+                        | Direction::Right => {
+                            if precedence.is_some() && precedence.unwrap() <= op.precedence() {
+                                tokens.next();
+                                exp = Exp::BinExp(BinExp::new(
+                                    exp,
+                                    op,
+                                    Self::parse_with_precedence(tokens, Some(op.precedence()))?,
+                                ))
+                            }
+                        }
+                    }
+                }
+            }
+            return Ok(exp);
+        }
+
         result
     }
 }
