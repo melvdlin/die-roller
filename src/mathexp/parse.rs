@@ -9,7 +9,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum ParseError {
     EndOfTokenStream,
-    UnexpectedToken(usize),
+    UnexpectedToken(usize, String),
     ImbalancedParentheses(usize),
 }
 
@@ -31,7 +31,17 @@ pub struct Parser {}
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Parse Error")
+        write!(
+            f,
+            "Parse Error: {}",
+            match self {
+                | ParseError::EndOfTokenStream => "Unexpected end of token stream".to_string(),
+                | ParseError::UnexpectedToken(idx, token) =>
+                    format!("Unexpected token at index {idx}: {token}"),
+                | ParseError::ImbalancedParentheses(idx) =>
+                    format!("Imbalanced parentheses at index {idx}"),
+            }
+        )
     }
 }
 
@@ -82,7 +92,6 @@ impl crate::parse::Parser for Parser {
                                         frags.push(Fragment::BinExp(exp, token_op));
                                         tokens.next();
                                     }
-                                    continue;
                                 }
                                 | Fragment::BinExp(tos_exp, tos_op) => {
                                     if tos_op.has_associative_precedence(&token_op) {
@@ -94,12 +103,14 @@ impl crate::parse::Parser for Parser {
                                         frags.push(Fragment::BinExp(exp, token_op));
                                         tokens.next();
                                     }
-                                    continue;
                                 }
-                                | _ => {
+                                | Fragment::GroupedExp => {
                                     frags.push(tos);
+                                    frags.push(Fragment::BinExp(exp, token_op));
+                                    tokens.next();
                                 }
                             }
+                            continue;
                         } else {
                             frags.push(Fragment::BinExp(exp, token_op));
                             tokens.next();
@@ -162,7 +173,7 @@ impl crate::parse::Parser for Parser {
                             return Err(ParseError::ImbalancedParentheses(*idx));
                         }
                     } else {
-                        return Err(ParseError::UnexpectedToken(*idx));
+                        return Err(ParseError::UnexpectedToken(*idx, token.to_string()));
                     }
                 } else if let Some(tos) = frags.pop() {
                     match tos {
@@ -193,7 +204,7 @@ impl crate::parse::Parser for Parser {
                     tokens.next();
                     continue;
                 } else {
-                    return Err(ParseError::UnexpectedToken(*idx));
+                    return Err(ParseError::UnexpectedToken(*idx, token.to_string()));
                 }
             } else {
                 return Err(ParseError::EndOfTokenStream);
