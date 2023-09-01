@@ -1,23 +1,66 @@
-use syn::Expr;
-
-pub enum Expression {
-    GroupedExpression(GroupedExpression),
-    LiteralExpression(LiteralExpression),
-    OperatorExpression(OperatorExpression),
+#[derive(Debug, Clone)]
+pub enum Exp {
+    BinExp(BinExp),
+    UnExpPre(UnExpPre),
+    UnExpPost(UnExpPost),
+    GroupedExp(GroupedExp),
+    Lit(Lit),
 }
 
-pub struct GroupedExpression {
-    expr: Box<Expr>,
+#[derive(Debug, Clone)]
+pub struct BinExp {
+    pub lhs: Box<Exp>,
+    pub op: BinOp,
+    pub rhs: Box<Exp>,
 }
 
-pub enum LiteralExpression {
-    DecLiteral(DecLiteral),
+#[derive(Debug, Copy, Clone)]
+pub enum BinOp {
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Caret,
 }
 
-pub struct DecLiteral {
-    digits: Vec<DecDigit>,
+#[derive(Debug, Clone)]
+pub struct UnExpPre {
+    pub op: UnOpPre,
+    pub exp: Box<Exp>,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum UnOpPre {
+    Plus,
+    Minus,
+}
+
+#[derive(Debug, Clone)]
+pub struct UnExpPost {
+    pub exp: Box<Exp>,
+    pub op: UnOpPost,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum UnOpPost {}
+
+#[derive(Debug, Clone)]
+pub struct GroupedExp {
+    pub exp: Box<Exp>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Lit {
+    DecLit(DecLit),
+}
+
+#[derive(Debug, Clone)]
+pub struct DecLit {
+    pub digits: Vec<DecDigit>,
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum DecDigit {
     Zero = 0,
     One = 1,
@@ -31,38 +74,36 @@ pub enum DecDigit {
     Nine = 9,
 }
 
-pub enum OperatorExpression {
-    BinaryExpression(BinaryExpression),
-    UnaryExpression(UnaryExpression),
+impl BinExp {
+    pub fn new(lhs: Exp, op: BinOp, rhs: Exp) -> Self {
+        Self {
+            lhs: Box::new(lhs),
+            op,
+            rhs: Box::new(rhs),
+        }
+    }
 }
 
-pub struct BinaryExpression {
-    lhs: Box<Expression>,
-    operator: BinaryOperator,
-    rhs: Box<Expression>,
+impl UnExpPre {
+    pub fn new(op: UnOpPre, exp: Exp) -> Self {
+        Self {
+            op,
+            exp: Box::new(exp),
+        }
+    }
 }
 
-pub struct UnaryExpression {
-    operator: UnaryOperator,
-    expr: Box<Expression>,
+impl UnExpPost {
+    pub fn new(exp: Exp, op: UnOpPost) -> Self {
+        Self {
+            exp: Box::new(exp),
+            op,
+        }
+    }
 }
 
-pub enum BinaryOperator {
-    ArithmeticOperator(ArithmeticOperator),
-}
-
-pub enum ArithmeticOperator {
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    Percent,
-}
-
-pub enum UnaryOperator {
-    NegationOperator(NegationOperator),
-}
-
-pub enum NegationOperator {
-    Minus,
+impl GroupedExp {
+    pub fn new(exp: Exp) -> Self {
+        Self { exp: Box::new(exp) }
+    }
 }

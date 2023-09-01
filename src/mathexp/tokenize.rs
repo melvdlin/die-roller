@@ -1,4 +1,4 @@
-use crate::tokenize::{Token, TokenBuffer, TokenDesc, Tokenizer};
+use crate::tokenize::{Token, TokenBuffer};
 use regex::Regex;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
@@ -9,26 +9,20 @@ pub enum TokenizeError {
     UnknownToken(Range<usize>, String),
 }
 
-type Error = TokenizeError;
-type Result<T> = std::result::Result<T, Error>;
+pub type Error = TokenizeError;
+pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
-pub enum TokenType {
-    Literal,
-    Operator,
-    LeftParen,
-    RightParen,
-}
+pub struct Tokenizer;
 
 #[derive(Debug)]
 pub struct Tokens {
     source: String,
-    tokens: Vec<Token<TokenType>>,
+    tokens: Vec<Token>,
 }
 
 static WHITESPACE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\s+").unwrap());
 static LITERAL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[0-9]+").unwrap());
-static OPERATOR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[+\-*/%]").unwrap());
+static OPERATOR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[+\-*/%^]").unwrap());
 static LEFT_PAREN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\(").unwrap());
 static RIGHT_PAREN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\)").unwrap());
 
@@ -48,16 +42,7 @@ impl Display for TokenizeError {
 
 impl std::error::Error for TokenizeError {}
 
-impl TokenDesc for TokenType {}
-
-impl Display for TokenType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl Tokenizer for TokenType {
-    type TokenDesc = TokenType;
+impl crate::tokenize::Tokenizer for Tokenizer {
     type TokenBuffer = Tokens;
     type TokenizeError = TokenizeError;
 
@@ -69,20 +54,20 @@ impl Tokenizer for TokenType {
         let mut offset: usize = 0;
         while !source.is_empty() {
             let mut matched = false;
-            for (token_type, re) in [
-                (None, &WHITESPACE_RE),
-                (Some(TokenType::Literal), &LITERAL_RE),
-                (Some(TokenType::Operator), &OPERATOR_RE),
-                (Some(TokenType::LeftParen), &LEFT_PAREN_RE),
-                (Some(TokenType::RightParen), &RIGHT_PAREN_RE),
+            for (keep, re) in [
+                (false, &WHITESPACE_RE),
+                (true, &LITERAL_RE),
+                (true, &OPERATOR_RE),
+                (true, &LEFT_PAREN_RE),
+                (true, &RIGHT_PAREN_RE),
             ] {
                 if let Some(mat) = re.find(source) {
                     matched = true;
                     source = &source[mat.end()..];
-                    if let Some(token_type) = token_type {
+                    if keep {
                         let abs_start = mat.start() + offset;
                         let abs_end = mat.end() + offset;
-                        tokens.add_token(abs_start..abs_end, token_type);
+                        tokens.add_token(abs_start..abs_end);
                     }
                     offset += mat.end();
                     if matched {
@@ -99,9 +84,9 @@ impl Tokenizer for TokenType {
 }
 
 impl Tokens {
-    fn add_token(&mut self, range: Range<usize>, token_type: TokenType) {
+    fn add_token(&mut self, range: Range<usize>) {
         self.tokens
-            .push(Token::new(&self.source[range.clone()], range, token_type));
+            .push(Token::new(&self.source[range.clone()], range));
     }
 }
 
@@ -121,8 +106,7 @@ impl Display for Tokens {
 }
 
 impl TokenBuffer for Tokens {
-    type TokenDesc = TokenType;
-    type TokenIter<'iter> = std::slice::Iter<'iter, Token<Self::TokenDesc>>;
+    type TokenIter<'iter> = std::slice::Iter<'iter, Token>;
 
     fn iter<'iter, 'self_ref: 'iter>(&'self_ref self) -> Self::TokenIter<'iter> {
         self.tokens.iter()
