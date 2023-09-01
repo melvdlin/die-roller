@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 #[derive(Debug, Clone)]
 pub enum Exp {
     BinExp(BinExp),
@@ -105,5 +107,100 @@ impl UnExpPost {
 impl GroupedExp {
     pub fn new(exp: Exp) -> Self {
         Self { exp: Box::new(exp) }
+    }
+}
+
+impl Display for Exp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            | Exp::BinExp(bin_exp) => write!(f, "[{bin_exp}]"),
+            | Exp::UnExpPre(un_exp_pre) => write!(f, "[{un_exp_pre}]"),
+            | Exp::UnExpPost(un_exp_post) => write!(f, "[{un_exp_post}]"),
+            | Exp::GroupedExp(grouped_exp) => write!(f, "[{grouped_exp}]"),
+            | Exp::Lit(lit) => write!(f, "[{lit}]"),
+        }
+    }
+}
+
+impl Display for BinExp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} {}", self.lhs, self.op, self.rhs)
+    }
+}
+
+impl Display for UnExpPre {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.op, self.exp)
+    }
+}
+
+impl Display for UnExpPost {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}, {}", self.exp, self.op)
+    }
+}
+
+impl Display for GroupedExp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({})", self.exp)
+    }
+}
+
+impl Display for Lit {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            | Lit::DecLit(dec_lit) => write!(f, "{dec_lit}"),
+        }
+    }
+}
+
+impl Display for DecLit {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            String::from_iter(
+                self.digits
+                    .iter()
+                    .map(|digit| (*digit as usize).to_string())
+            )
+        )
+    }
+}
+
+impl Display for BinOp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                | BinOp::Plus => "+",
+                | BinOp::Minus => "-",
+                | BinOp::Star => "*",
+                | BinOp::Slash => "/",
+                | BinOp::Percent => "%",
+                | BinOp::Caret => "^",
+            }
+        )
+    }
+}
+
+impl Display for UnOpPre {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                | UnOpPre::Plus => "+",
+                | UnOpPre::Minus => "-",
+            }
+        )
+    }
+}
+
+impl Display for UnOpPost {
+    #[allow(unreachable_code)]
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match *self {})
     }
 }
