@@ -21,10 +21,8 @@ pub struct Tokens {
 }
 
 static WHITESPACE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\s+").unwrap());
-static LITERAL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[0-9]+").unwrap());
-static OPERATOR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[+\-*/%^!]").unwrap());
-static LEFT_PAREN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\(").unwrap());
-static RIGHT_PAREN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A\)").unwrap());
+static TOKEN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\A(([0-9]+)|[+\-*/%^!()])").unwrap());
 
 impl Display for TokenizeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -53,30 +51,21 @@ impl crate::tokenize::Tokenizer for Tokenizer {
         };
         let mut offset: usize = 0;
         while !source.is_empty() {
-            let mut matched = false;
-            for (keep, re) in [
-                (false, &WHITESPACE_RE),
-                (true, &LITERAL_RE),
-                (true, &OPERATOR_RE),
-                (true, &LEFT_PAREN_RE),
-                (true, &RIGHT_PAREN_RE),
-            ] {
-                if let Some(mat) = re.find(source) {
-                    matched = true;
-                    source = &source[mat.end()..];
-                    if keep {
-                        let abs_start = mat.start() + offset;
-                        let abs_end = mat.end() + offset;
-                        tokens.add_token(abs_start..abs_end);
-                    }
-                    offset += mat.end();
-                    if matched {
-                        break;
-                    }
-                }
-            }
-            if !matched {
-                return Err(TokenizeError::UnknownToken(0..0, source.to_string()));
+            if let Some(mat) = WHITESPACE_RE.find(source) {
+                source = &source[mat.end()..];
+                offset += mat.end();
+            } else if let Some(mat) = TOKEN_RE.find(source) {
+                let abs_start = mat.start() + offset;
+                let abs_end = mat.end() + offset;
+                tokens.add_token(abs_start..abs_end);
+
+                source = &source[mat.end()..];
+                offset += mat.end();
+            } else {
+                return Err(TokenizeError::UnknownToken(
+                    offset..(offset + source.len()),
+                    source.to_string(),
+                ));
             }
         }
         Ok(tokens)
