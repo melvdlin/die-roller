@@ -58,27 +58,6 @@ impl crate::parse::Parser for Parser {
         let mut sub_exp: Option<Exp> = None;
 
         while !frags.is_empty() || tokens.peek().is_some() {
-            // token could be:
-            // ")":         must be preceded by [ "(" SubExp ]              -> SubExp
-            // Lit:         must be preceded by [ "(" | UnOpPre | BinOp ]   -> SubExp
-            // UnOpPost     must be preceded by [ SubExp ]                  -> SubExp
-            // "("          must be preceded by [ "(" | UnOpPre | BinOp ]   -> GroupedExp
-            // UnOpPre      must be preceded by [ "(" | UnOpPre | BinOp ]   -> UnExpPre
-            // BinOp        must be preceded by [ SubExp ]                  -> BinExp
-            // every iteration:
-            // 1: try to resolve stack with token
-            //      if sub_exp available and next token = [ BinOp | UnOpPost ] = op
-            //          if TOS = BinExp
-            //              if TOS.associativity = Left
-            //                  if op.precedence < TOS.precedence
-            //                      push BinOp(SubExp, op)
-            //                  else
-            //                      sub_exp = pop TOS + sub_exp
-            //                      if token = BinOp
-            // 2: otherwise create new fragment with token and push fragment onto stack
-
-            //
-
             if let Some(exp) = sub_exp.take() {
                 if let Some((idx, token)) = tokens.peek() {
                     if let Some(token_op) = BinOp::parse(token) {
